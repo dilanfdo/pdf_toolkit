@@ -36,6 +36,36 @@ class PdfService {
         CompressionQuality.high => 85,
       };
 
+  static const double _probeDpi = 20;
+  static const double _maxRenderDimension = 3000;
+
+  /// Rendering at a fixed DPI can request an enormous bitmap for a PDF with
+  /// an unusually large physical page size (a poster, architectural
+  /// drawing, or just an oversized MediaBox some PDF producers emit) — the
+  /// *native* PDF renderer then throws a fatal OutOfMemoryError that
+  /// crashes the whole app before any Dart try/catch can run. This probes
+  /// each page's rendered size at a cheap low DPI first and caps the real
+  /// DPI so no page's bitmap exceeds [_maxRenderDimension] on its longest
+  /// side, regardless of the page's physical size.
+  Future<double> _safeDpi(
+    Uint8List bytes,
+    double requestedDpi, {
+    List<int>? pages,
+  }) async {
+    var safeDpi = requestedDpi;
+    await for (final probe in Printing.raster(bytes, dpi: _probeDpi, pages: pages)) {
+      final widthAtRequested = probe.width / _probeDpi * requestedDpi;
+      final heightAtRequested = probe.height / _probeDpi * requestedDpi;
+      final longestSide =
+          widthAtRequested > heightAtRequested ? widthAtRequested : heightAtRequested;
+      if (longestSide > _maxRenderDimension) {
+        final pageSafeDpi = requestedDpi * (_maxRenderDimension / longestSide);
+        if (pageSafeDpi < safeDpi) safeDpi = pageSafeDpi;
+      }
+    }
+    return safeDpi;
+  }
+
   Future<File> _saveDocument(pw.Document doc, String filename) async {
     final dir = await getApplicationDocumentsDirectory();
     final file = File('${dir.path}/$filename');
@@ -94,11 +124,12 @@ class PdfService {
     String filename = 'merged.pdf',
   }) async {
     final doc = pw.Document();
-    final dpi = _dpiFor(quality);
+    final requestedDpi = _dpiFor(quality);
     final jpegQuality = _jpegQualityFor(quality);
 
     for (final pdfFile in pdfs) {
       final bytes = await pdfFile.readAsBytes();
+      final dpi = await _safeDpi(bytes, requestedDpi);
       await for (final raster in Printing.raster(bytes, dpi: dpi)) {
         final jpegBytes = await _rasterToJpeg(raster, jpegQuality);
         final image = pw.MemoryImage(jpegBytes);
@@ -123,10 +154,11 @@ class PdfService {
     String filename = 'split.pdf',
   }) async {
     final doc = pw.Document();
-    final dpi = _dpiFor(quality);
+    final requestedDpi = _dpiFor(quality);
     final jpegQuality = _jpegQualityFor(quality);
     final bytes = await pdf.readAsBytes();
     final pageIndices = [for (var i = fromPage; i <= toPage; i++) i];
+    final dpi = await _safeDpi(bytes, requestedDpi, pages: pageIndices);
 
     await for (final raster
         in Printing.raster(bytes, dpi: dpi, pages: pageIndices)) {
@@ -149,9 +181,10 @@ class PdfService {
     String filename = 'compressed.pdf',
   }) async {
     final doc = pw.Document();
-    final dpi = _dpiFor(quality);
+    final requestedDpi = _dpiFor(quality);
     final jpegQuality = _jpegQualityFor(quality);
     final bytes = await pdf.readAsBytes();
+    final dpi = await _safeDpi(bytes, requestedDpi);
 
     await for (final raster in Printing.raster(bytes, dpi: dpi)) {
       final jpegBytes = await _rasterToJpeg(raster, jpegQuality);

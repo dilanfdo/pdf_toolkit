@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:integration_test/integration_test.dart';
+import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdfly/services/pdf_service.dart';
 
@@ -18,6 +19,27 @@ Future<File> _writePdfFixture(String name, int pageCount) async {
       ),
     );
   }
+  final file = File('${Directory.systemTemp.path}/$name');
+  await file.writeAsBytes(await doc.save());
+  return file;
+}
+
+/// A PDF with an unusually large physical page size (17x24in — the kind of
+/// oversized MediaBox some PDF producers emit, or a poster/drawing export).
+/// Rendering this at a fixed high DPI without any safeguard requests a
+/// bitmap large enough to trigger a native OutOfMemoryError that crashes
+/// the whole app, not just a catchable Dart exception. See PdfService's
+/// _safeDpi.
+Future<File> _writeOversizedPageFixture(String name) async {
+  final doc = pw.Document();
+  doc.addPage(
+    pw.Page(
+      pageFormat: const PdfPageFormat(17.2 * 72, 24.4 * 72),
+      build: (context) => pw.Center(
+        child: pw.Text('Oversized page', style: const pw.TextStyle(fontSize: 40)),
+      ),
+    ),
+  );
   final file = File('${Directory.systemTemp.path}/$name');
   await file.writeAsBytes(await doc.save());
   return file;
@@ -77,6 +99,29 @@ void main() {
     // size; the service should detect that and fall back to the original.
     expect(compressedSize, lessThanOrEqualTo(originalSize));
     print('compress: original=$originalSize bytes, compressed=$compressedSize bytes');
+  });
+
+  testWidgets('compressPdf on an oversized-page PDF does not crash', (tester) async {
+    final fixture = await _writeOversizedPageFixture('oversized_compress.pdf');
+
+    final compressed = await service.compressPdf(fixture, quality: CompressionQuality.high);
+
+    expect(await compressed.exists(), isTrue);
+    expect(await service.getPageCount(compressed), 1);
+  });
+
+  testWidgets('splitPdf on an oversized-page PDF does not crash', (tester) async {
+    final fixture = await _writeOversizedPageFixture('oversized_split.pdf');
+
+    final split = await service.splitPdf(
+      fixture,
+      fromPage: 0,
+      toPage: 0,
+      quality: CompressionQuality.high,
+    );
+
+    expect(await split.exists(), isTrue);
+    expect(await service.getPageCount(split), 1);
   });
 
   testWidgets('splitPdf extracts the requested page range', (tester) async {
