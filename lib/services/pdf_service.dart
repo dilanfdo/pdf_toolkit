@@ -1,0 +1,169 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
+import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+
+enum CompressionQuality { low, medium, high }
+
+/// All PDF manipulation goes through page rasterization: every source PDF
+/// page is rendered to a bitmap (via the platform's native PDF renderer,
+/// exposed by `printing`) and re-assembled into a new PDF with the `pdf`
+/// package, which can only *generate* PDFs, not parse/edit existing ones.
+/// This is what makes compression possible (re-encode at lower DPI/JPEG
+/// quality) but it also means output pages are images: no selectable text,
+/// and merge/split of text-heavy PDFs will be larger than the vector
+/// originals. Good enough for a scan/photo-style PDF utility; if
+/// text-fidelity merge/split matters later, swap this layer for a proper
+/// PDF-editing library.
+class PdfService {
+  PdfService._();
+  static final PdfService instance = PdfService._();
+
+  double _dpiFor(CompressionQuality quality) => switch (quality) {
+        CompressionQuality.low => 72,
+        CompressionQuality.medium => 120,
+        CompressionQuality.high => 180,
+      };
+
+  int _jpegQualityFor(CompressionQuality quality) => switch (quality) {
+        CompressionQuality.low => 40,
+        CompressionQuality.medium => 65,
+        CompressionQuality.high => 85,
+      };
+
+  Future<File> _saveDocument(pw.Document doc, String filename) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/$filename');
+    return file.writeAsBytes(await doc.save(), flush: true);
+  }
+
+  Future<Uint8List> _rasterToJpeg(PdfRaster raster, int jpegQuality) async {
+    final uiImage = await raster.toImage();
+    final byteData =
+        await uiImage.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final image = img.Image.fromBytes(
+      width: uiImage.width,
+      height: uiImage.height,
+      bytes: byteData!.buffer,
+      numChannels: 4,
+      order: img.ChannelOrder.rgba,
+    );
+    return img.encodeJpg(image, quality: jpegQuality);
+  }
+
+  /// Counts pages by rasterizing at a throwaway-low DPI. There is no
+  /// lightweight page-count API available without parsing the PDF, so this
+  /// is the cheapest correct option in this stack.
+  Future<int> getPageCount(File pdf) async {
+    final bytes = await pdf.readAsBytes();
+    var count = 0;
+    await for (final _ in Printing.raster(bytes, dpi: 30)) {
+      count++;
+    }
+    return count;
+  }
+
+  Future<File> imagesToPdf(
+    List<File> images, {
+    String filename = 'images_to_pdf.pdf',
+  }) async {
+    final doc = pw.Document();
+    for (final imageFile in images) {
+      final bytes = await imageFile.readAsBytes();
+      final image = pw.MemoryImage(bytes);
+      doc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          build: (context) => pw.Center(
+            child: pw.Image(image, fit: pw.BoxFit.contain),
+          ),
+        ),
+      );
+    }
+    return _saveDocument(doc, filename);
+  }
+
+  Future<File> mergePdfs(
+    List<File> pdfs, {
+    CompressionQuality quality = CompressionQuality.high,
+    String filename = 'merged.pdf',
+  }) async {
+    final doc = pw.Document();
+    final dpi = _dpiFor(quality);
+    final jpegQuality = _jpegQualityFor(quality);
+
+    for (final pdfFile in pdfs) {
+      final bytes = await pdfFile.readAsBytes();
+      await for (final raster in Printing.raster(bytes, dpi: dpi)) {
+        final jpegBytes = await _rasterToJpeg(raster, jpegQuality);
+        final image = pw.MemoryImage(jpegBytes);
+        doc.addPage(
+          pw.Page(
+            pageFormat: PdfPageFormat(raster.width * 72 / dpi,
+                raster.height * 72 / dpi),
+            build: (context) => pw.Image(image, fit: pw.BoxFit.fill),
+          ),
+        );
+      }
+    }
+    return _saveDocument(doc, filename);
+  }
+
+  /// [fromPage]/[toPage] are 0-indexed and inclusive.
+  Future<File> splitPdf(
+    File pdf, {
+    required int fromPage,
+    required int toPage,
+    CompressionQuality quality = CompressionQuality.high,
+    String filename = 'split.pdf',
+  }) async {
+    final doc = pw.Document();
+    final dpi = _dpiFor(quality);
+    final jpegQuality = _jpegQualityFor(quality);
+    final bytes = await pdf.readAsBytes();
+    final pageIndices = [for (var i = fromPage; i <= toPage; i++) i];
+
+    await for (final raster
+        in Printing.raster(bytes, dpi: dpi, pages: pageIndices)) {
+      final jpegBytes = await _rasterToJpeg(raster, jpegQuality);
+      final image = pw.MemoryImage(jpegBytes);
+      doc.addPage(
+        pw.Page(
+          pageFormat:
+              PdfPageFormat(raster.width * 72 / dpi, raster.height * 72 / dpi),
+          build: (context) => pw.Image(image, fit: pw.BoxFit.fill),
+        ),
+      );
+    }
+    return _saveDocument(doc, filename);
+  }
+
+  Future<File> compressPdf(
+    File pdf, {
+    required CompressionQuality quality,
+    String filename = 'compressed.pdf',
+  }) async {
+    final doc = pw.Document();
+    final dpi = _dpiFor(quality);
+    final jpegQuality = _jpegQualityFor(quality);
+    final bytes = await pdf.readAsBytes();
+
+    await for (final raster in Printing.raster(bytes, dpi: dpi)) {
+      final jpegBytes = await _rasterToJpeg(raster, jpegQuality);
+      final image = pw.MemoryImage(jpegBytes);
+      doc.addPage(
+        pw.Page(
+          pageFormat:
+              PdfPageFormat(raster.width * 72 / dpi, raster.height * 72 / dpi),
+          build: (context) => pw.Image(image, fit: pw.BoxFit.fill),
+        ),
+      );
+    }
+    return _saveDocument(doc, filename);
+  }
+}
