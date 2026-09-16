@@ -69,8 +69,15 @@ still reports this error. Two separate things had to be true to fix it on this
 machine:
 
 - `android/app/build.gradle.kts`'s release build type needs
-  `ndk { debugSymbolLevel = "FULL" }` so AGP actually packages the
-  `.so.dbg` sidecar files Flutter's check looks for (this part is in the repo).
+  `ndk { debugSymbolLevel = "SYMBOL_TABLE" }` (or `"FULL"`) so AGP packages the
+  `.sym`/`.so.dbg` sidecar files Flutter's check looks for (this part is in the
+  repo). Use `SYMBOL_TABLE`, not `FULL` — `FULL` packages complete DWARF debug
+  info for the entire Flutter engine across all 3 ABIs, which alone adds
+  ~85MB to the AAB (142MB vs 56MB, measured on this app) for debug symbols
+  that never reach end users anyway (Play strips `BUNDLE-METADATA` before
+  generating per-device APKs). `SYMBOL_TABLE` still satisfies Flutter's check
+  and still lets Play Console symbolicate native crash stack traces by
+  function name — just without full line-level debug info.
 - **Machine-local**: if `cmdline-tools/latest` under the Android SDK is a
   *symlink* to a Homebrew-installed location (e.g. from
   `brew install --cask android-commandlinetools`), `apkanalyzer`'s own
