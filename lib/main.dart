@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
-import 'services/ad_service.dart';
+import 'services/consent_service.dart';
 import 'services/theme_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await AdService.instance.initialize();
+  // Gathers ad consent (EEA/UK, via Google's UMP) and initializes the Mobile
+  // Ads SDK before any screen that might request an ad gets built.
+  await ConsentService.instance.gatherConsentAndInitializeAds();
   await ThemeController.instance.load();
   runApp(const PdfToolkitApp());
 }

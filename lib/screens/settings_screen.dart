@@ -1,8 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import '../services/consent_service.dart';
 import '../services/theme_controller.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  bool _showPrivacyOptions = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrivacyOptionsVisibility();
+  }
+
+  Future<void> _loadPrivacyOptionsVisibility() async {
+    final status = await ConsentService.instance.privacyOptionsRequirement;
+    if (!mounted) return;
+    setState(() {
+      _showPrivacyOptions = status == PrivacyOptionsRequirementStatus.required;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +53,17 @@ class SettingsScreen extends StatelessWidget {
               );
             },
           ),
+          if (_showPrivacyOptions)
+            ListTile(
+              leading: const Icon(Icons.privacy_tip_outlined),
+              title: const Text('Privacy options'),
+              subtitle: const Text('Manage ad consent'),
+              onTap: () async {
+                await ConsentService.instance.showPrivacyOptionsForm();
+                if (!mounted) return;
+                _loadPrivacyOptionsVisibility();
+              },
+            ),
           ListTile(
             leading: const Icon(Icons.block),
             title: const Text('Remove ads'),

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'consent_service.dart';
 
 /// Centralizes AdMob unit IDs and interstitial frequency capping.
 ///
@@ -26,8 +27,6 @@ class AdService {
   static const _prodBannerAndroid = 'ca-app-pub-4607423166762045/8466652066';
   static const _prodInterstitialAndroid = 'ca-app-pub-4607423166762045/8833036469';
 
-  Future<void> initialize() => MobileAds.instance.initialize();
-
   String get bannerAdUnitId {
     if (Platform.isIOS || !kReleaseMode) {
       return Platform.isIOS ? _testBannerIOS : _testBannerAndroid;
@@ -42,7 +41,10 @@ class AdService {
     return _prodInterstitialAndroid;
   }
 
-  BannerAd createBannerAd({required void Function(Ad ad) onLoaded}) {
+  /// Returns null without creating anything if consent hasn't been
+  /// obtained yet (required before requesting any ad — see ConsentService).
+  BannerAd? createBannerAd({required void Function(Ad ad) onLoaded}) {
+    if (!ConsentService.instance.canRequestAdsSync) return null;
     return BannerAd(
       adUnitId: bannerAdUnitId,
       size: AdSize.banner,
@@ -57,6 +59,7 @@ class AdService {
   /// Call after a successful export. Shows an interstitial at most once
   /// every [_exportsPerInterstitial] exports, and never on the first one.
   Future<void> maybeShowInterstitialAfterExport() async {
+    if (!ConsentService.instance.canRequestAdsSync) return;
     final prefs = await SharedPreferences.getInstance();
     final count = (prefs.getInt(_exportCounterKey) ?? 0) + 1;
 
