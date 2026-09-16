@@ -1,12 +1,16 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Centralizes AdMob unit IDs and interstitial frequency capping.
 ///
-/// IMPORTANT: these are Google's official *test* ad unit IDs. Swap them for
-/// real ad unit IDs (via --dart-define or a build-time config) before a
-/// release build ships to the store — test IDs must never go to production.
+/// Real ad unit IDs only get served in release builds. Debug/profile builds
+/// always use Google's test ad units — serving real ones during development
+/// generates impressions/clicks from the same device repeatedly, which
+/// AdMob's invalid-traffic detection can flag and get the account suspended.
+/// There is no real iOS app registered in AdMob yet, so iOS stays on test
+/// IDs in every build mode until that's set up.
 class AdService {
   AdService._();
   static final AdService instance = AdService._();
@@ -14,15 +18,29 @@ class AdService {
   static const _exportCounterKey = 'export_count_since_last_ad';
   static const _exportsPerInterstitial = 3;
 
+  static const _testBannerAndroid = 'ca-app-pub-3940256099942544/6300978111';
+  static const _testBannerIOS = 'ca-app-pub-3940256099942544/2934735716';
+  static const _testInterstitialAndroid = 'ca-app-pub-3940256099942544/1033173712';
+  static const _testInterstitialIOS = 'ca-app-pub-3940256099942544/4411468910';
+
+  static const _prodBannerAndroid = 'ca-app-pub-4607423166762045/8466652066';
+  static const _prodInterstitialAndroid = 'ca-app-pub-4607423166762045/8833036469';
+
   Future<void> initialize() => MobileAds.instance.initialize();
 
-  String get bannerAdUnitId => Platform.isIOS
-      ? 'ca-app-pub-3940256099942544/2934735716'
-      : 'ca-app-pub-3940256099942544/6300978111';
+  String get bannerAdUnitId {
+    if (Platform.isIOS || !kReleaseMode) {
+      return Platform.isIOS ? _testBannerIOS : _testBannerAndroid;
+    }
+    return _prodBannerAndroid;
+  }
 
-  String get interstitialAdUnitId => Platform.isIOS
-      ? 'ca-app-pub-3940256099942544/4411468910'
-      : 'ca-app-pub-3940256099942544/1033173712';
+  String get interstitialAdUnitId {
+    if (Platform.isIOS || !kReleaseMode) {
+      return Platform.isIOS ? _testInterstitialIOS : _testInterstitialAndroid;
+    }
+    return _prodInterstitialAndroid;
+  }
 
   BannerAd createBannerAd({required void Function(Ad ad) onLoaded}) {
     return BannerAd(
