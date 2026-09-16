@@ -21,6 +21,36 @@ PDFly published on the Play Store — update it as steps get completed.
 - [x] Privacy policy page (`docs/privacy-policy.html`)
 - [x] ASO copy (title, short description, full description) — see below for where
       it's recorded
+- [x] Full manual QA pass through every screen/tool on both an emulator and a real
+      device (Samsung Galaxy A16, Android 16), driving the actual native file/photo
+      pickers rather than just the integration tests. Found and fixed 3 real bugs
+      this way — see below.
+- [x] Tablet screenshots (7" and 10", `store_screenshots/tablet_7in/`,
+      `tablet_10in/`)
+
+## Bugs found during manual QA (all fixed, all covered by tests where practical)
+
+- **Fatal native OOM crash** on PDFs with an unusually large physical page size
+  (e.g. a poster/drawing export) at High quality — the native PDF renderer would
+  allocate a huge bitmap and crash the whole app before any Dart error handling
+  could run. Fixed with a cheap low-DPI probe pass that caps the real render DPI.
+  Regression-tested in `integration_test/pdf_flow_test.dart`.
+- **Bottom banner ad rendered behind the system navigation bar** on edge-to-edge
+  real devices (only visible on real hardware, not the emulator). Fixed by
+  wrapping the banner in `SafeArea(top: false)`.
+- **Dark-mode toggle showed off when the app was actually dark** — it only
+  checked `mode == ThemeMode.dark` literally, missing the case where the default
+  `ThemeMode.system` resolves to dark because the OS is in dark mode. Fixed by
+  resolving against `MediaQuery.platformBrightnessOf(context)` in that case.
+
+Also found and reverted mid-fix: wrapping the banner in `Center()` (in addition
+to `SafeArea`) broke the Home screen's tool-card grid entirely, because `Center`
+has no bounded intrinsic size and expands to fill whatever space Scaffold gives
+`bottomNavigationBar`. Worth remembering if this area gets touched again.
+
+Also noted, not fixed (cosmetic/accessibility, not blocking): the Settings gear
+icon and the per-file remove ("×") buttons have no accessibility label
+(`content-desc`) — screen reader users would hear nothing for these controls.
 
 ## ASO copy (for pasting into Play Console's store listing)
 
