@@ -40,7 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('PDF Toolkit'),
+        title: const Text('PDFly'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),

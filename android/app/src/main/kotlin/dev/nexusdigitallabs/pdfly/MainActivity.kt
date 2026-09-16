@@ -1,4 +1,4 @@
-package com.dilanfernando.pdf_toolkit
+package dev.nexusdigitallabs.pdfly
 
 import io.flutter.embedding.android.FlutterActivity
 

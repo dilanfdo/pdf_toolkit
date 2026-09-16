@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:pdf_toolkit/main.dart';
+import 'package:pdfly/main.dart';
 
 void main() {
   testWidgets('Home screen shows all four tools', (WidgetTester tester) async {

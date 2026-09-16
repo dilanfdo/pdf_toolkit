@@ -19,7 +19,7 @@ class PdfToolkitApp extends StatelessWidget {
       valueListenable: ThemeController.instance.mode,
       builder: (context, mode, _) {
         return MaterialApp(
-          title: 'PDF Toolkit',
+          title: 'PDFly',
           themeMode: mode,
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),

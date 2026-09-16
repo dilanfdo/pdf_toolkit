@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="pdf_toolkit"
+        android:label="PDFly"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <!-- TEST AdMob App ID (Google's official sample ID). Replace with your
