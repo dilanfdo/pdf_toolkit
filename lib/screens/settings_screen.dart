@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/theme_controller.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -9,10 +10,15 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
-          SwitchListTile(
-            title: const Text('Dark theme'),
-            value: Theme.of(context).brightness == Brightness.dark,
-            onChanged: null, // TODO: wire to a theme controller
+          ValueListenableBuilder<ThemeMode>(
+            valueListenable: ThemeController.instance.mode,
+            builder: (context, mode, _) {
+              return SwitchListTile(
+                title: const Text('Dark theme'),
+                value: mode == ThemeMode.dark,
+                onChanged: (isDark) => ThemeController.instance.setDark(isDark),
+              );
+            },
           ),
           ListTile(
             leading: const Icon(Icons.block),
