@@ -164,6 +164,18 @@ class PdfService {
         ),
       );
     }
-    return _saveDocument(doc, filename);
+    final compressed = await _saveDocument(doc, filename);
+
+    // Rasterizing a page can end up *larger* than the source, e.g. a
+    // text/vector-only PDF re-encoded as a JPEG image. Never hand back a
+    // "compressed" file that's bigger than what the user started with.
+    if (await compressed.length() >= await pdf.length()) {
+      final dir = await getApplicationDocumentsDirectory();
+      final fallback = File('${dir.path}/$filename');
+      await compressed.delete();
+      await pdf.copy(fallback.path);
+      return fallback;
+    }
+    return compressed;
   }
 }
