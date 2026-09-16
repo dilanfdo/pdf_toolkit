@@ -57,7 +57,12 @@ android {
                 signingConfigs.getByName("debug")
             }
             ndk {
-                debugSymbolLevel = "FULL"
+                // SYMBOL_TABLE (not FULL) — still lets Play Console
+                // symbolicate native crash stack traces by function name,
+                // but at a fraction of FULL's size (FULL includes full
+                // DWARF line-level debug info for the entire Flutter
+                // engine, which alone added ~85MB to the upload).
+                debugSymbolLevel = "SYMBOL_TABLE"
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
