@@ -20,6 +20,17 @@ class ConsentService {
   /// Runs the consent flow (showing a form only if UMP decides the user's
   /// region requires one), then initializes the Mobile Ads SDK and caches
   /// whether ads may be requested into [canRequestAdsSync].
+  ///
+  /// Every step is time-bounded. Found by testing on a real device: if the
+  /// native consent-info request never calls back (bad network, a
+  /// reachability issue reaching Google's consent servers, anything), the
+  /// success/failure callback pair alone doesn't help — neither ever fires,
+  /// so an un-timed-out await here hangs forever and the app never gets
+  /// past its launch splash. That's a strictly worse failure mode than
+  /// having no consent handling at all, so this must never be allowed to
+  /// block startup indefinitely: on timeout, proceed with ads simply not
+  /// requested this session (canRequestAdsSync stays false) rather than
+  /// leave the user staring at a frozen splash screen.
   Future<void> gatherConsentAndInitializeAds() async {
     final params = ConsentRequestParameters(
       consentDebugSettings: kReleaseMode
@@ -32,10 +43,22 @@ class ConsentService {
           : ConsentDebugSettings(debugGeography: DebugGeography.debugGeographyEea),
     );
 
-    await _requestConsentInfoUpdate(params);
-    await _loadAndShowFormIfRequired();
-    await MobileAds.instance.initialize();
-    canRequestAdsSync = await ConsentInformation.instance.canRequestAds();
+    try {
+      await _requestConsentInfoUpdate(params).timeout(const Duration(seconds: 10));
+      await _loadAndShowFormIfRequired().timeout(const Duration(seconds: 15));
+    } on TimeoutException {
+      // Fall through — ads just won't be requested this session.
+    }
+
+    try {
+      await MobileAds.instance.initialize().timeout(const Duration(seconds: 10));
+    } catch (_) {
+      // Proceed regardless — worst case, individual ad requests fail later.
+    }
+
+    canRequestAdsSync = await ConsentInformation.instance
+        .canRequestAds()
+        .timeout(const Duration(seconds: 5), onTimeout: () => false);
   }
 
   Future<PrivacyOptionsRequirementStatus> get privacyOptionsRequirement =>
