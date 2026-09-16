@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 1200px;
+    height: 1920px;
+    overflow: hidden;
+    background: #FBF5FF;
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+  .canvas {
+    position: relative;
+    width: 1200px;
+    height: 1920px;
+    background: linear-gradient(160deg, #FBF5FF 0%, #F3E9FF 55%, #EAE0FB 100%);
+    overflow: hidden;
+  }
+  .blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(2px);
+  }
+  .blob-1 {
+    width: 900px; height: 900px;
+    top: -420px; left: -320px;
+    background: radial-gradient(circle at 30% 30%, #C4A6F5, #8B5CF6 70%);
+    opacity: 0.55;
+  }
+  .blob-2 {
+    width: 700px; height: 700px;
+    bottom: -300px; right: -280px;
+    background: radial-gradient(circle at 60% 40%, #A78BFA, #6D28D9 70%);
+    opacity: 0.5;
+  }
+  .ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 28px solid #8B5CF6;
+    opacity: 0.18;
+  }
+  .ring-1 { width: 520px; height: 520px; top: 120px; right: -180px; }
+  .ring-2 { width: 380px; height: 380px; bottom: 260px; left: -160px; }
+
+  .headline {
+    position: absolute;
+    top: 110px;
+    left: 60px;
+    right: 60px;
+    text-align: center;
+    font-size: 66px;
+    font-weight: 800;
+    line-height: 1.15;
+    color: #3B1E7A;
+    letter-spacing: -1px;
+  }
+  .subtext {
+    position: absolute;
+    top: 300px;
+    left: 90px;
+    right: 90px;
+    text-align: center;
+    font-size: 32px;
+    font-weight: 400;
+    color: #6B5B95;
+    line-height: 1.4;
+  }
+
+  .phone-wrap {
+    position: absolute;
+    top: 460px;
+    left: 50%;
+    width: 640px;
+    height: 1260px;
+    margin-left: -320px;
+    transform: perspective(1400px) rotateY(TILT_Ydeg) rotateX(0deg);
+    transform-style: preserve-3d;
+  }
+  .phone-shadow {
+    position: absolute;
+    width: 640px;
+    height: 1260px;
+    border-radius: 64px;
+    background: #3B1E7A;
+    filter: blur(50px);
+    opacity: 0.35;
+    top: 40px;
+    left: 30px;
+  }
+  .phone-frame {
+    position: relative;
+    width: 640px;
+    height: 1260px;
+    background: #111;
+    border-radius: 64px;
+    padding: 18px;
+    box-shadow: 0 40px 80px rgba(59,30,122,0.35);
+  }
+  .phone-screen {
+    width: 100%;
+    height: 100%;
+    border-radius: 48px;
+    overflow: hidden;
+    background: #fff;
+    position: relative;
+  }
+  .phone-screen img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top;
+    display: block;
+  }
+  .notch {
+    position: absolute;
+    top: 18px;
+    left: 50%;
+    margin-left: -70px;
+    width: 140px;
+    height: 34px;
+    background: #111;
+    border-radius: 20px;
+    z-index: 5;
+  }
+
+  .badge {
+    position: absolute;
+    top: 1780px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: #fff;
+    padding: 18px 36px;
+    border-radius: 100px;
+    box-shadow: 0 10px 30px rgba(59,30,122,0.15);
+  }
+  .badge .dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #8B5CF6, #4C1D95);
+  }
+  .badge span {
+    font-size: 28px;
+    font-weight: 700;
+    color: #3B1E7A;
+  }
+</style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="ring ring-1"></div>
+    <div class="ring ring-2"></div>
+    <div class="headline">HEADLINE_TEXT</div>
+    <div class="subtext">SUBTEXT_TEXT</div>
+    <div class="phone-wrap">
+      <div class="phone-shadow"></div>
+      <div class="phone-frame">
+        <div class="notch"></div>
+        <div class="phone-screen">
+          <img src="data:image/png;base64,IMAGE_DATA">
+        </div>
+      </div>
+    </div>
+    <div class="badge"><div class="dot"></div><span>100% On-Device · No Uploads</span></div>
+  </div>
+</body>
+</html>
