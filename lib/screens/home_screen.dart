@@ -65,10 +65,13 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       bottomNavigationBar: _bannerAd == null
           ? null
-          : SizedBox(
-              height: _bannerAd!.size.height.toDouble(),
-              width: _bannerAd!.size.width.toDouble(),
-              child: AdWidget(ad: _bannerAd!),
+          : SafeArea(
+              top: false,
+              child: SizedBox(
+                height: _bannerAd!.size.height.toDouble(),
+                width: _bannerAd!.size.width.toDouble(),
+                child: AdWidget(ad: _bannerAd!),
+              ),
             ),
     );
   }
